@@ -109,7 +109,7 @@ zeroagent/
 
 ## Statut
 
-Développement en cours. Suivi public sur [LinkedIn](https://www.linkedin.com/in/byborrelle) et [YouTube](https://youtube.com/@BorrelleDev).
+Développement en cours. Suivi public sur [LinkedIn](https://linkedin.com/in/ton-profil) et [YouTube](https://youtube.com/@BorrelleDev).
 
 Chaque phase est documentée publiquement dans `DESIGN.md`.
 

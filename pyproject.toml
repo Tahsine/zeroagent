@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "zeroagent"
@@ -22,5 +22,6 @@ zeroagent = "zeroagent.__main__:main"
 Repository = "https://github.com/Tahsine/zeroagent"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["zeroagent*"]
+exclude = ["zeroagent.tests*"]

@@ -4,9 +4,21 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+*.egg/
+
+# Environnement virtuel
+.venv/
+venv/
+env/
 
 # Environnement
 .env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
