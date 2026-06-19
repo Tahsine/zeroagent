@@ -172,7 +172,7 @@ Le fichier `langchain-sdk-test.py` est un outil de démonstration, pas une fonct
 
 ## Statut
 
-Développement en cours. Suivi public sur [LinkedIn](https://linkedin.com/in/ton-profil)
+Développement en cours. Suivi public sur [LinkedIn](https://www.linkedin.com/in/byborrelle)
 et [YouTube](https://youtube.com/@BorrelleDev).
 
 Chaque phase est documentée publiquement dans `DESIGN.md`.
