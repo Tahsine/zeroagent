@@ -1,12 +1,95 @@
 """
 Point d'entrée public de zeroagent.
-Les imports publics seront ajoutés phase par phase.
 
-Usage final visé :
-    from zeroagent import Agent, tool
+Imports publics stables — utilisables directement depuis le package racine :
+
+    from zeroagent import Agent, tool, LLMClient
+    from zeroagent import BufferMemory, WindowMemory, SummaryMemory
+    from zeroagent import Message, LLMResponse, ToolCall, ToolRegistry
+
+Imports avancés (toujours disponibles via leur module) :
     from zeroagent.core.llm import LLMClient
-    from zeroagent.workflow import Graph, Node, State
+    from zeroagent.harness.loop import AgentLoop, RunConfig, RunResult, StopReason
+    from zeroagent.harness.parser import parse_response, ParsedAction, ActionType
+    from zeroagent.harness.executor import Executor, ExecutionResult
 """
 
-# Sera peuplé au fur et à mesure des phases
-__all__ = []
+# ---------------------------------------------------------------------------
+# Core — LLM client + types
+# ---------------------------------------------------------------------------
+from zeroagent.core.llm import (
+    LLMClient,
+    Message,
+    LLMResponse,
+    ToolCall,
+)
+
+# ---------------------------------------------------------------------------
+# Core — tools
+# ---------------------------------------------------------------------------
+from zeroagent.core.tools import (
+    tool,
+    ToolRegistry,
+    ToolSchema,
+)
+
+# ---------------------------------------------------------------------------
+# Core — memory
+# ---------------------------------------------------------------------------
+from zeroagent.core.memory import (
+    BaseMemory,
+    BufferMemory,
+    WindowMemory,
+)
+
+# ---------------------------------------------------------------------------
+# Harness — memory étendue (SummaryMemory nécessite un LLM optionnel)
+# ---------------------------------------------------------------------------
+from zeroagent.harness.memory import SummaryMemory
+
+# ---------------------------------------------------------------------------
+# Harness — Agent (façade principale)
+# ---------------------------------------------------------------------------
+from zeroagent.harness.agent import Agent
+
+# ---------------------------------------------------------------------------
+# Harness — types utiles pour les hooks et introspection
+# ---------------------------------------------------------------------------
+from zeroagent.harness.loop import RunResult, StopReason, RunConfig
+from zeroagent.harness.parser import ParsedAction, ActionType
+from zeroagent.harness.executor import ExecutionResult
+
+# ---------------------------------------------------------------------------
+# Surface publique explicite
+# ---------------------------------------------------------------------------
+__all__ = [
+    # Entrées principales — ce que 90% des utilisateurs importent
+    "Agent",
+    "tool",
+    "LLMClient",
+
+    # Types LLM
+    "Message",
+    "LLMResponse",
+    "ToolCall",
+
+    # Tools
+    "ToolRegistry",
+    "ToolSchema",
+
+    # Mémoire
+    "BaseMemory",
+    "BufferMemory",
+    "WindowMemory",
+    "SummaryMemory",
+
+    # Résultats et contrôle de boucle
+    "RunResult",
+    "StopReason",
+    "RunConfig",
+
+    # Parsing et exécution (pour utilisateurs avancés / hooks)
+    "ParsedAction",
+    "ActionType",
+    "ExecutionResult",
+]

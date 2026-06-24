@@ -32,13 +32,32 @@ class Message:
     content: str
     tool_call_id: str | None = None   # rempli si role == "tool"
     name: str | None = None           # nom du tool appelé
+    tool_calls: list["ToolCall"] = field(default_factory=list)
+    # ^ rempli si role == "assistant" et que le LLM a décidé d'appeler des tools.
+    #   OBLIGATOIRE pour que les messages "tool" suivants soient acceptés par
+    #   l'API (OpenAI/Anthropic/Ollama exigent que tool_call_id référence un
+    #   tool_call émis par l'assistant juste avant). Sans ça, certains
+    #   providers ignorent silencieusement l'observation et rappellent le
+    #   même tool en boucle.
 
     def to_dict(self) -> dict:
-        d = {"role": self.role, "content": self.content}
+        d: dict = {"role": self.role, "content": self.content}
         if self.tool_call_id:
             d["tool_call_id"] = self.tool_call_id
         if self.name:
             d["name"] = self.name
+        if self.tool_calls:
+            d["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.name,
+                        "arguments": json.dumps(tc.arguments, ensure_ascii=False),
+                    },
+                }
+                for tc in self.tool_calls
+            ]
         return d
 
 
@@ -112,6 +131,50 @@ def _build_openai_request(
     return body
 
 
+def _messages_to_anthropic(messages: list[Message]) -> list[dict]:
+    """
+    Convertit une liste de Message vers le format natif Anthropic.
+
+    Différences clés avec OpenAI :
+    - Pas de role="tool". Le résultat d'un tool est un message role="user"
+      avec un bloc content de type "tool_result".
+    - Un message assistant avec tool_calls devient un bloc "tool_use"
+      dans son content (au lieu d'un champ tool_calls séparé).
+    - Le texte et les tool_use peuvent coexister dans le même message
+      assistant (content est une liste de blocs).
+    """
+    result: list[dict] = []
+
+    for m in messages:
+        if m.role == "assistant" and m.tool_calls:
+            content_blocks: list[dict] = []
+            if m.content:
+                content_blocks.append({"type": "text", "text": m.content})
+            for tc in m.tool_calls:
+                content_blocks.append({
+                    "type": "tool_use",
+                    "id": tc.id,
+                    "name": tc.name,
+                    "input": tc.arguments,
+                })
+            result.append({"role": "assistant", "content": content_blocks})
+
+        elif m.role == "tool":
+            result.append({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": m.tool_call_id,
+                    "content": m.content,
+                }],
+            })
+
+        else:
+            result.append({"role": m.role, "content": m.content})
+
+    return result
+
+
 def _build_anthropic_request(
     messages: list[Message],
     model: str,
@@ -122,20 +185,21 @@ def _build_anthropic_request(
 ) -> tuple[dict, str | None]:
     """
     Retourne (body, system_prompt).
-    Anthropic sépare le system message du reste des messages.
+    Anthropic sépare le system message du reste des messages,
+    et utilise un format de blocs content natif (voir _messages_to_anthropic).
     """
     system_prompt: str | None = None
-    filtered: list[dict] = []
+    non_system: list[Message] = []
 
     for m in messages:
         if m.role == "system":
             system_prompt = m.content
         else:
-            filtered.append(m.to_dict())
+            non_system.append(m)
 
     body: dict = {
         "model": model,
-        "messages": filtered,
+        "messages": _messages_to_anthropic(non_system),
         "max_tokens": max_tokens,
         "temperature": temperature,
         "stream": stream,

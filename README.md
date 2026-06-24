@@ -4,6 +4,8 @@
 
 ![zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue)
+![version](https://img.shields.io/badge/version-0.1.0-blue)
+![tests](https://img.shields.io/badge/tests-139%20passing-brightgreen)
 ![status](https://img.shields.io/badge/status-in%20development-orange)
 
 ---
@@ -23,7 +25,8 @@ sans installer la moindre librairie externe. Tout repose sur la stdlib Python.
 dans un code que tu peux lire en une après-midi.
 
 **Fonctionnel aujourd'hui :** CLI one-shot, chat interactif, streaming token-par-token,
-tool calling, boucle ReAct complète.
+tool calling, boucle ReAct complète, mémoire conversationnelle (Buffer, Window, Summary),
+API SDK publique stable.
 
 ---
 
@@ -64,6 +67,89 @@ Kaggle LLM Server, Anthropic, etc.
 
 ---
 
+## API SDK
+
+```python
+from zeroagent import Agent, tool, LLMClient
+
+@tool(description="Recherche des informations")
+def search(query: str) -> str:
+    return f"Résultats pour : {query}"
+
+llm = LLMClient(base_url="https://api.openai.com/v1", api_key="sk-...")
+agent = Agent(llm=llm, tools=[search])
+
+result = agent.run("Quelle est la capitale du Bénin ?")
+print(result)
+```
+
+### Imports disponibles
+
+```python
+# Entrées principales
+from zeroagent import Agent, tool, LLMClient
+
+# Types LLM
+from zeroagent import Message, LLMResponse, ToolCall
+
+# Registry
+from zeroagent import ToolRegistry, ToolSchema
+
+# Mémoire
+from zeroagent import BufferMemory, WindowMemory, SummaryMemory
+
+# Résultats et contrôle de boucle
+from zeroagent import RunResult, StopReason, RunConfig
+
+# Avancé (hooks, introspection)
+from zeroagent import ParsedAction, ActionType, ExecutionResult
+```
+
+### Mémoire conversationnelle
+
+```python
+from zeroagent import Agent, LLMClient, BufferMemory, WindowMemory, SummaryMemory
+
+# Buffer complet — garde toute la conversation
+agent = Agent(llm=llm, memory=BufferMemory())
+
+# Fenêtre glissante — garde les 10 derniers messages
+agent = Agent(llm=llm, memory=WindowMemory(k=10))
+
+# Résumé automatique — compresse les vieux messages via LLM
+agent = Agent(llm=llm, memory=SummaryMemory(llm=llm, max_messages=20, keep_recent=6))
+```
+
+### Hooks (observe le comportement interne de l'agent)
+
+```python
+agent = Agent(
+    llm=llm,
+    tools=[search],
+    on_thought=lambda thought, i: print(f"[{i}] Thought: {thought}"),
+    on_action=lambda name, args, i: print(f"[{i}] Action: {name}({args})"),
+    on_observation=lambda name, obs, ok, i: print(f"[{i}] Obs: {obs}"),
+    on_final=lambda answer, reason: print(f"Final ({reason}): {answer}"),
+)
+```
+
+### run() vs run_full()
+
+```python
+# run() — retourne juste la réponse finale (str)
+answer = agent.run("Quelle est la capitale du Bénin ?")
+
+# run_full() — retourne le RunResult complet
+result = agent.run_full("Quelle est la capitale du Bénin ?")
+print(result.answer)           # str
+print(result.stop_reason)      # StopReason.FINAL_ANSWER | MAX_ITERATIONS | ...
+print(result.iterations)       # int
+print(result.tool_calls_made)  # int
+print(result.thoughts)         # list[str]
+```
+
+---
+
 ## CLI flags
 
 | Flag | Défaut | Description |
@@ -90,49 +176,30 @@ Kaggle LLM Server, Anthropic, etc.
 
 ```
 src/zeroagent/
+├── __init__.py       # Package root — re-exporte toute l'API publique
 ├── __main__.py       # CLI — argparse, couleurs, modes one-shot/chat/stream
-├── sdk.py            # Point d'entrée public (imports à venir)
+├── sdk.py            # Point d'entrée public — tous les imports stables
 ├── demo.py           # Démo rapide
 │
 ├── core/             # Fondations
 │   ├── llm.py        # LLMClient — HTTP pur, OpenAI-compatible + Anthropic
 │   ├── tools.py      # @tool décorateur + ToolRegistry (génère JSON Schema)
-│   └── memory.py     # BufferMemory conversationnelle
+│   └── memory.py     # BufferMemory + WindowMemory
 │
 ├── harness/          # Boucle ReAct complète
 │   ├── agent.py      # Agent (façade publique : LLM + Registry + Memory + Loop)
 │   ├── loop.py       # Boucle ReAct : Thought → Action → Observation
 │   ├── parser.py     # Parse les décisions du LLM (tool call, final answer, thought)
-│   └── executor.py   # Exécute les actions, capture les observations
+│   ├── executor.py   # Exécute les actions, capture les observations
+│   └── memory.py     # SummaryMemory (résumé automatique via LLM)
 │
 ├── workflow/         # (en construction) DAG multi-nœuds
 │
-└── tests/            # Tests unitaires (stdlib unittest)
+└── tests/            # 139 tests unitaires (stdlib unittest)
     ├── test_llm.py
     ├── test_tools.py
     ├── test_harness.py
     └── test_memory.py
-```
-
----
-
-## API SDK
-
-À venir. L'import public final sera :
-
-```python
-from zeroagent import Agent, tool
-from zeroagent.core.llm import LLMClient
-
-@tool(description="Recherche des informations")
-def search(query: str) -> str:
-    return f"Résultats pour : {query}"
-
-llm = LLMClient(base_url="https://api.openai.com/v1", api_key="sk-...")
-agent = Agent(llm=llm, tools=[search])
-
-result = agent.run("Quelle est la capitale du Bénin ?")
-print(result)
 ```
 
 ---
@@ -170,6 +237,20 @@ Le fichier `langchain-sdk-test.py` est un outil de démonstration, pas une fonct
 
 ---
 
+## Roadmap
+
+- [x] LLMClient HTTP pur (OpenAI-compatible + Anthropic natif)
+- [x] `@tool` décorateur + ToolRegistry (JSON Schema auto-généré)
+- [x] Boucle ReAct complète (Thought → Action → Observation)
+- [x] Mémoire conversationnelle (Buffer, Window, Summary)
+- [x] CLI one-shot, chat, streaming
+- [x] API SDK publique (`from zeroagent import Agent, tool, LLMClient`)
+- [ ] `arun()` — support async natif
+- [ ] `workflow/` — DAG multi-nœuds (Node, State, Graph, parallel execution)
+- [ ] Publication PyPI
+
+---
+
 ## Statut
 
 Développement en cours. Suivi public sur [LinkedIn](https://www.linkedin.com/in/byborrelle)
@@ -182,7 +263,3 @@ Chaque phase est documentée publiquement dans `DESIGN.md`.
 ## Licence
 
 MIT
-
-Fix tools
-
-Fix tools

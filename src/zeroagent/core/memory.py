@@ -94,15 +94,26 @@ class BaseMemory(ABC):
 
     @staticmethod
     def _dicts_to_messages(dicts: list[dict]) -> list[Message]:
-        return [
-            Message(
+        from zeroagent.core.llm import ToolCall
+
+        messages = []
+        for d in dicts:
+            tool_calls = [
+                ToolCall(
+                    id=tc["id"],
+                    name=tc["function"]["name"],
+                    arguments=json.loads(tc["function"]["arguments"]),
+                )
+                for tc in d.get("tool_calls", [])
+            ]
+            messages.append(Message(
                 role=d["role"],
                 content=d["content"],
                 tool_call_id=d.get("tool_call_id"),
                 name=d.get("name"),
-            )
-            for d in dicts
-        ]
+                tool_calls=tool_calls,
+            ))
+        return messages
 
 
 # ---------------------------------------------------------------------------

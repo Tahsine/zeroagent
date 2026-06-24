@@ -21,6 +21,7 @@ from zeroagent.core.llm import (
     _build_anthropic_request,
     _build_openai_request,
     _detect_provider,
+    _messages_to_anthropic,
     _openai_tool_to_anthropic,
     _parse_anthropic_response,
     _parse_openai_response,
@@ -207,6 +208,64 @@ class TestBuildRequests(unittest.TestCase):
             self.messages, "claude-sonnet-4-6", None, 0.7, 512, False
         )
         self.assertEqual(body["max_tokens"], 512)
+
+    def test_anthropic_assistant_tool_call_becomes_tool_use_block(self):
+        """
+        Régression : un message assistant avec tool_calls doit devenir
+        un bloc content de type 'tool_use', pas un champ 'tool_calls'
+        séparé (qui n'existe pas dans l'API Anthropic).
+        """
+        tc = ToolCall(id="toolu_01", name="search", arguments={"query": "Bénin"})
+        messages = [
+            Message(role="user", content="Cherche la capitale du Bénin"),
+            Message(role="assistant", content="", tool_calls=[tc]),
+        ]
+        result = _messages_to_anthropic(messages)
+
+        assistant_msg = result[1]
+        self.assertEqual(assistant_msg["role"], "assistant")
+        self.assertIsInstance(assistant_msg["content"], list)
+        tool_use_block = assistant_msg["content"][0]
+        self.assertEqual(tool_use_block["type"], "tool_use")
+        self.assertEqual(tool_use_block["id"], "toolu_01")
+        self.assertEqual(tool_use_block["name"], "search")
+        self.assertEqual(tool_use_block["input"], {"query": "Bénin"})
+
+    def test_anthropic_tool_result_becomes_user_message(self):
+        """
+        Régression : un message role='tool' doit devenir un message
+        role='user' avec un bloc 'tool_result' — Anthropic n'a pas
+        de role='tool'. Sans cette conversion, l'API Anthropic
+        rejette la requête ou ignore l'observation.
+        """
+        messages = [
+            Message(role="tool", content="Porto-Novo", tool_call_id="toolu_01", name="search"),
+        ]
+        result = _messages_to_anthropic(messages)
+
+        self.assertEqual(result[0]["role"], "user")
+        block = result[0]["content"][0]
+        self.assertEqual(block["type"], "tool_result")
+        self.assertEqual(block["tool_use_id"], "toolu_01")
+        self.assertEqual(block["content"], "Porto-Novo")
+
+    def test_anthropic_full_tool_cycle_in_request(self):
+        """Le cycle complet assistant→tool_use puis tool→tool_result dans une requête."""
+        tc = ToolCall(id="toolu_01", name="search", arguments={"query": "test"})
+        messages = [
+            Message(role="system", content="Tu es utile."),
+            Message(role="user", content="Question"),
+            Message(role="assistant", content="", tool_calls=[tc]),
+            Message(role="tool", content="Résultat", tool_call_id="toolu_01", name="search"),
+        ]
+        body, system = _build_anthropic_request(
+            messages, "claude-sonnet-4-6", None, 0.7, 1024, False
+        )
+        self.assertEqual(system, "Tu es utile.")
+        # system extrait, donc 3 messages restants : user, assistant, tool→user
+        self.assertEqual(len(body["messages"]), 3)
+        self.assertEqual(body["messages"][1]["content"][0]["type"], "tool_use")
+        self.assertEqual(body["messages"][2]["content"][0]["type"], "tool_result")
 
     def test_openai_tool_to_anthropic_conversion(self):
         openai_tool = {
