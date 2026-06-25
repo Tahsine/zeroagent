@@ -1,35 +1,41 @@
 import asyncio
 from zeroagent import Agent, tool, LLMClient
+from zeroagent.workflow import Graph, Node, State
 
-@tool(description="Additionne deux nombres entiers")
-def add(a:int, b:int) -> int:
+# --- Tools ---
+@tool(description="Additionne deux nombres")
+def add(a: int, b: int) -> int:
     return a + b
 
+# --- Agent dans un nœud ---
 llm = LLMClient(
     base_url="https://ollama.com/v1",
     model="minimax-m3:cloud",
-    api_key="4d521aaed302428cb3a4de03eda0fbc9.4jOowXaZajJocowLY-Qa-5ME"
+    api_key="4d521aaed302428cb3a4de03eda0fbc9.4jOowXaZajJocowLY-Qa-5ME",
 )
+agent = Agent(llm=llm, tools=[add])
 
-agent = Agent(llm=llm, tools=[add], verbose=True)
+# --- Nœuds purs ---
+def prepare(state: State) -> State:
+    state["input"] = f"Calcule {state['a']} + {state['b']}"
+    return state
 
-async def main():
-    # Test 1 — réponse directe
-    print("=== Test 1 : réponse directe ===")
-    result = await agent.arun("Quelle est la capitale du Bénin ?")
-    print("→", result)
+def format_output(state: State) -> State:
+    state["final"] = f"Résultat : {state['output']}"
+    return state
 
-    # Test 2 — avec tool call
-    print("\n=== Test 2 : tool call ===")
-    result = await agent.arun("Calcule 42 + 58")
-    print("→", result)
+# --- Graph ---
+graph = Graph(name="demo")
+graph.add_node(Node("prepare", fn=prepare))
+graph.add_node(Node("agent", fn=agent))
+graph.add_node(Node("format", fn=format_output))
+graph.add_edge("prepare", "agent")
+graph.add_edge("agent", "format")
+graph.set_entry("prepare")
+graph.set_finish("format")
 
-    # Test 3 — run_full pour voir les métadonnées
-    print("\n=== Test 3 : arun_full ===")
-    result = await agent.arun_full("Calcule 100 + 200")
-    print("→ answer:", result.answer)
-    print("→ stop_reason:", result.stop_reason)
-    print("→ iterations:", result.iterations)
-    print("→ tool_calls_made:", result.tool_calls_made)
+print(graph.visualize())
 
-asyncio.run(main())
+result = graph.run(State({"a": 42, "b": 58}))
+print(result.state["final"])
+print("Nodes exécutés:", result.executed)

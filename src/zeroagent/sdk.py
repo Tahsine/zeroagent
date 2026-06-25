@@ -60,6 +60,11 @@ from zeroagent.harness.parser import ParsedAction, ActionType
 from zeroagent.harness.executor import ExecutionResult
 
 # ---------------------------------------------------------------------------
+# Workflow — DAG Node/State/Graph
+# ---------------------------------------------------------------------------
+from zeroagent.workflow import State, Node, Graph, GraphResult, Edge, ConditionalEdge
+
+# ---------------------------------------------------------------------------
 # Async — LLM client + boucle agent
 # ---------------------------------------------------------------------------
 from zeroagent.core.async_llm import AsyncLLMClient
@@ -103,4 +108,12 @@ __all__ = [
     "AsyncLLMClient",
     "AsyncAgentLoop",
     "AsyncExecutor",
+
+    # Workflow
+    "State",
+    "Node",
+    "Graph",
+    "GraphResult",
+    "Edge",
+    "ConditionalEdge",
 ]
