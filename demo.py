@@ -11,7 +11,7 @@ def add(a: int, b: int) -> int:
 llm = LLMClient(
     base_url="https://ollama.com/v1",
     model="minimax-m3:cloud",
-    api_key="4d521aaed302428cb3a4de03eda0fbc9.4jOowXaZajJocowLY-Qa-5ME",
+    api_key="",
 )
 agent = Agent(llm=llm, tools=[add])
 
