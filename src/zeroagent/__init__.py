@@ -38,6 +38,11 @@ from zeroagent.sdk import (
     ParsedAction,
     ActionType,
     ExecutionResult,
+
+    # Async
+    AsyncLLMClient,
+    AsyncAgentLoop,
+    AsyncExecutor,
 )
 
 __all__ = [
@@ -60,4 +65,7 @@ __all__ = [
     "ParsedAction",
     "ActionType",
     "ExecutionResult",
+    "AsyncLLMClient",
+    "AsyncAgentLoop",
+    "AsyncExecutor",
 ]

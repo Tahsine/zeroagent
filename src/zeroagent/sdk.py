@@ -60,6 +60,12 @@ from zeroagent.harness.parser import ParsedAction, ActionType
 from zeroagent.harness.executor import ExecutionResult
 
 # ---------------------------------------------------------------------------
+# Async — LLM client + boucle agent
+# ---------------------------------------------------------------------------
+from zeroagent.core.async_llm import AsyncLLMClient
+from zeroagent.harness.async_loop import AsyncAgentLoop, AsyncExecutor
+
+# ---------------------------------------------------------------------------
 # Surface publique explicite
 # ---------------------------------------------------------------------------
 __all__ = [
@@ -92,4 +98,9 @@ __all__ = [
     "ParsedAction",
     "ActionType",
     "ExecutionResult",
+
+    # Async
+    "AsyncLLMClient",
+    "AsyncAgentLoop",
+    "AsyncExecutor",
 ]

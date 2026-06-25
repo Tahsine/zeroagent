@@ -27,6 +27,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 from typing import Callable
 
 from zeroagent.core.llm import LLMClient, Message
@@ -123,6 +124,64 @@ class Agent:
         Utile pour le debug, les tests, et le build in public. 😄
         """
         return self._loop.run(user_input)
+
+    async def arun(self, user_input: str) -> str:
+        """
+        Version async de run().
+        Retourne la réponse finale sous forme de string.
+
+        Utilise AsyncLLMClient + AsyncAgentLoop en interne.
+        Les tool calls multiples dans la même itération sont exécutés
+        en parallèle via asyncio.gather().
+
+        Usage:
+            result = await agent.arun("Quelle est la capitale du Bénin ?")
+
+        Ou dans un contexte FastAPI / Streamlit :
+            answer = await agent.arun(user_message)
+        """
+        result = await self._get_async_loop().arun(user_input)
+        return result.answer
+
+    async def arun_full(self, user_input: str) -> RunResult:
+        """
+        Version async de run_full().
+        Retourne le RunResult complet.
+
+        Usage:
+            result = await agent.arun_full("Calcule 42 * 7")
+            print(result.answer)
+            print(result.stop_reason)
+            print(result.iterations)
+        """
+        return await self._get_async_loop().arun(user_input)
+
+    def _get_async_loop(self):
+        """
+        Construit (et met en cache) un AsyncAgentLoop depuis la config existante.
+        Évite de reconstruire à chaque appel arun().
+
+        L'AsyncLLMClient est construit depuis le LLMClient sync via from_sync().
+        """
+        if hasattr(self, "_async_loop"):
+            return self._async_loop
+
+        from zeroagent.core.async_llm import AsyncLLMClient
+        from zeroagent.harness.async_loop import AsyncAgentLoop
+
+        async_llm = AsyncLLMClient.from_sync(self.llm)
+        self._async_loop = AsyncAgentLoop(
+            llm=async_llm,
+            registry=self._registry,
+            memory=self._memory,
+            config=self._config,
+            on_thought=self._loop._on_thought,
+            on_action=self._loop._on_action,
+            on_observation=self._loop._on_observation,
+            on_final=self._loop._on_final,
+            on_error=self._loop._on_error,
+        )
+        return self._async_loop
 
     def reset(self) -> None:
         """
