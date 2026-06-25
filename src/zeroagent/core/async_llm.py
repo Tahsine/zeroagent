@@ -128,7 +128,15 @@ async def _read_chunked(reader: asyncio.StreamReader, timeout: float) -> bytes:
     chunks: list[bytes] = []
     while True:
         size_line = await asyncio.wait_for(reader.readline(), timeout=timeout)
-        size = int(size_line.strip(), 16)
+        stripped = size_line.strip()
+        if not stripped:
+            # Ligne vide parasite — ignorer et continuer
+            continue
+        try:
+            size = int(stripped, 16)
+        except ValueError:
+            # Ligne non-hex inattendue — on arrête proprement
+            break
         if size == 0:
             break
         chunk = await asyncio.wait_for(reader.readexactly(size), timeout=timeout)
@@ -167,7 +175,15 @@ async def _do_async_request(
             f"HTTP {status} from {path}: {raw.decode('utf-8', errors='replace')}"
         )
 
-    return json.loads(raw)
+    if not raw:
+        raise RuntimeError(f"Réponse vide (HTTP {status}) depuis {path}")
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"JSON invalide depuis {path}: {e} — body: {raw[:200].decode('utf-8', errors='replace')}"
+        )
 
 
 async def _stream_openai_async(

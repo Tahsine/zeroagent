@@ -225,9 +225,14 @@ class AsyncAgentLoop:
             # ----------------------------------------------------------
             # 2. Ajouter la réponse assistant en mémoire
             # ----------------------------------------------------------
+            # Si la réponse contient des tool calls structurés, on doit
+            # injecter le message assistant AVEC les tool_calls — sinon
+            # les messages role='tool' suivants sont orphelins et le LLM
+            # ne voit jamais les observations.
             self.memory.add(Message(
                 role="assistant",
                 content=response.content or "",
+                tool_calls=response.tool_calls if response.has_tool_calls else [],
             ))
 
             # ----------------------------------------------------------
